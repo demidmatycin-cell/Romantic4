@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SUPER PATAN DASH v2.2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:'Segoe UI',system-ui,sans-serif;color:#fff}
+#gameCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;z-index:1}
+#particleCanvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
+
+/* === OVERLAYS === */
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:100;padding:30px;text-align:center;background:rgba(5,5,10,0.92);backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity 0.4s ease}
+.overlay.active{opacity:1;pointer-events:auto}
+
+/* === TYPOGRAPHY === */
+.logo{font-size:clamp(32px,8vw,56px);font-weight:900;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px;background:linear-gradient(135deg,#ff3b3b,#ff8c00,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 30px rgba(255,59,59,0.5));animation:glowPulse 3s ease-in-out infinite}
+.logo-sub{font-size:clamp(14px,3.5vw,18px);color:#888;letter-spacing:8px;text-transform:uppercase;margin-bottom:40px}
+@keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 20px rgba(255,59,59,0.4))}50%{filter:drop-shadow(0 0 40px rgba(255,140,0,0.6))}}
+
+/* === BUTTONS & INPUTS === */
+.btn-main{padding:18px 60px;font-size:clamp(16px,4vw,22px);font-weight:700;letter-spacing:2px;text-transform:uppercase;background:linear-gradient(135deg,#ff3b3b,#cc2222);color:#fff;border:none;border-radius:50px;cursor:pointer;position:relative;overflow:hidden;transition:all 0.3s ease;box-shadow:0 10px 40px rgba(255,59,59,0.4),inset 0 1px 0 rgba(255,255,255,0.2)}
+.btn-main:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 15px 50px rgba(255,59,59,0.5)}
+.btn-main:active{transform:translateY(0) scale(0.98)}
+.btn-secondary{padding:14px 40px;font-size:14px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:transparent;color:#888;border:2px solid #333;border-radius:50px;cursor:pointer;transition:all 0.3s ease;margin-top:15px}
+.btn-secondary:hover{border-color:#ff3b3b;color:#ff3b3b;box-shadow:0 0 20px rgba(255,59,59,0.2)}
+.input-field{width:min(80%,280px);padding:16px 24px;font-size:18px;font-weight:600;letter-spacing:2px;text-transform:uppercase;text-align:center;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.1);border-radius:50px;color:#fff;outline:none;transition:all 0.3s ease;margin-bottom:25px}
+.input-field:focus{border-color:#ff3b3b;box-shadow:0 0 30px rgba(255,59,59,0.3);background:rgba(255,255,255,0.08)}
+.input-field::placeholder{color:#555;text-transform:none;letter-spacing:1px}
+
+/* === LEVEL CARDS === */
+.levels-grid{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin:30px 0;max-width:800px}
+.level-card{width:160px;height:200px;background:linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));border:2px solid rgba(255,255,255,0.1);border-radius:20px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);position:relative;overflow:hidden}
+.level-card:hover{transform:translateY(-8px) scale(1.03);border-color:rgba(255,59,59,0.5);box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.level-card.selected{border-color:#ff3b3b;box-shadow:0 0 40px rgba(255,59,59,0.4);transform:scale(1.05)}
+.level-card.locked{opacity:0.4;pointer-events:none;filter:grayscale(1)}
+.card-num{font-size:12px;color:#666;letter-spacing:2px;text-transform:uppercase}
+.card-name{font-size:18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff}
+.card-diff{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px;display:inline-block;margin-top:8px}
+.diff-easy{background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.3)}
+.diff-medium{background:rgba(255,215,0,0.15);color:#ffd700;border:1px solid rgba(255,215,0,0.3)}
+.diff-hard{background:rgba(255,59,59,0.15);color:#ff3b3b;border:1px solid rgba(255,59,59,0.3)}
+.diff-extreme{background:rgba(255,0,128,0.15);color:#ff0080;border:1px solid rgba(255,0,128,0.3)}
+.card-stars{font-size:16px;letter-spacing:2px;color:#333}
+.card-stars .filled{color:#ffd700;text-shadow:0 0 10px rgba(255,215,0,0.5)}
+
+/* === HUD === */
+#hud{position:absolute;top:0;left:0;width:100%;padding:20px;display:none;justify-content:space-between;align-items:flex-start;z-index:50;pointer-events:none}
+#hud.active{display:flex}
+.hud-stat{background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);padding:12px 20px;border-radius:15px;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:4px}
+.hud-label{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase}
+.hud-value{font-size:24px;font-weight:800;color:#fff;letter-spacing:1px}
+.hud-value.gold{color:#ffd700;text-shadow:0 0 15px rgba(255,215,0,0.5)}
+.hud-value.red{color:#ff3b3b;text-shadow:0 0 15px rgba(255,59,59,0.5)}
+.hud-progress{position:absolute;top:0;left:0;width:100%;height:4px;background:rgba(255,255,255,0.1)}
+.hud-progress-bar{height:100%;background:linear-gradient(90deg,#ff3b3b,#ffd700);width:0%;transition:width 0.1s linear;box-shadow:0 0 20px rgba(255,59,59,0.5)}
+
+/* === RESULT SCREENS === */
+.result-title{font-size:clamp(28px,7vw,48px);font-weight:900;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+.result-title.win{background:linear-gradient(135deg,#00ff88,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 30px rgba(0,255,136,0.5))}
+.result-title.lose{color:#ff3b3b;text-shadow:0 0 30px rgba(255,59,59,0.5)}
+.result-stats{display:flex;gap:30px;margin:30px 0;flex-wrap:wrap;justify-content:center}
+.stat-item{text-align:center}
+.stat-value{font-size:36px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,0.5)}
+.stat-label{font-size:12px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:5px}
+.result-verdict{font-size:18px;color:#aaa;font-style:italic;margin:20px 0;max-width:400px;line-height:1.6}
+.controls-hint{position:absolute;bottom:30px;left:0;width:100%;text-align:center;font-size:13px;color:#555;letter-spacing:1px;text-transform:uppercase;pointer-events:none;z-index:40}
+@media(max-width:768px){.controls-hint{display:block}}
+@media(min-width:769px){.controls-hint{display:none}}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<canvas id="particleCanvas"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-progress"><div class="hud-progress-bar" id="progressBar"></div></div>
+  <div class="hud-stat"><span class="hud-label">Level</span><span class="hud-value" id="hudLevel">STEREO</span></div>
+  <div class="hud-stat"><span class="hud-label">Mode</span><span class="hud-value gold" id="hudMode">CUBE</span></div>
+  <div class="hud-stat"><span class="hud-label">Wishes</span><span class="hud-value gold" id="hudWishes">0</span></div>
+  <div class="hud-stat"><span class="hud-label">Attempt</span><span class="hud-value red" id="hudAttempt">1</span></div>
+</div>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="overlay active">
+  <h1 class="logo">SUPER PATAN DASH</h1>
+  <p class="logo-sub">Street Racing Platformer</p>
+  <input type="text" class="input-field" id="nameInput" placeholder="Enter your callsign" maxlength="12">
+  <button class="btn-main" onclick="goToMenu()">Start Engine</button>
+</div>
+
+<!-- MENU SCREEN -->
+<div id="menuScreen" class="overlay">
+  <h2 class="logo-sub" style="color:#fff;margin-bottom:10px">Select Mission</h2>
+  <div class="levels-grid" id="levelsGrid"></div>
+  <button class="btn-main" onclick="launchMission()">Launch Mission</button>
+  <button class="btn-secondary" onclick="showOverlay('startScreen')">Back</button>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="winScreen" class="overlay">
+  <h1 class="result-title win">Mission Complete</h1>
+  <div class="result-stats">
+    <div class="stat-item"><div class="stat-value" id="winStars">***</div><div class="stat-label">Rating</div></div>
+    <div class="stat-item"><div class="stat-value" id="winAttempts">1</div><div class="stat-label">Attempts</div></div>
+    <div class="stat-item"><div class="stat-value" id="winWishes">0</div><div class="stat-label">Wishes</div></div>
+  </div>
+  <p class="result-verdict" id="winVerdict">Real patan status achieved.</p>
+  <button class="btn-main" onclick="retryLevel()">Next Attempt</button>
+  <button class="btn-secondary" onclick="showOverlay('menuScreen')">Main Menu</button>
+</div>
+
+<!-- LOSE SCREEN -->
+<div id="loseScreen" class="overlay">
+  <h1 class="result-title lose">Wasted</h1>
+  <p class="result-verdict" style="color:#ff6b6b">The streets don't forgive mistakes.<br>But a real patan always gets back up.</p>
+  <button class="btn-main" onclick="retryLevel()">Try Again</button>
+  <button class="btn-secondary" onclick="showOverlay('menuScreen')">Quit to Menu</button>
+</div>
+
+<!-- MOBILE HINT -->
+<div class="controls-hint" id="mobileHint">Tap left/right to steer • Hold to fly (ship/plane mode)</div>
+
+<script>
+// ============================================
+// SUPER PATAN DASH v2.2 - PLANE MODE + FIXED PHYSICS
+// ============================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const pCanvas = document.getElementById('particleCanvas');
+const pCtx = pCanvas.getContext('2d');
+
+// === CONFIGURATION (FIXED FOR BETTER JUMPS) ===
+const CONFIG = {
+  physics: {
+    gravity: 0.58,        // Немного снизил гравитацию для более высоких прыжков
+    jumpForce: -15.5,     // ЗНАЧИТЕЛЬНО увеличил силу прыжка (-13.5 → -15.5)
+    speed: 5.5,           
+    playerSize: 34,       
+    screenOffsetX: 120,   
+    shipGravity: 0.38,    // Чуть легче корабль
+    shipLift: -0.75,      
+    planeGravity: 0.3,    // Самолет еще легче
+    planeLift: -0.6,      // Плавнее подъем
+    maxVelocity: 7,
+    coyoteTime: 7,        // Увеличил окно времени после края платформы
+    jumpBuffer: 9         // Больше буфер нажатия
+  },
+  colors: {
+    bgTop: '#0a0a0f', bgBottom: '#1a0a15',
+    ground: '#2a2035', groundLine: '#ff3b3b',
+    spike: '#ff3b3b', block: '#4a3a5e', blockHighlight: '#6a5a7e',
+    playerCube: '#ffffff', playerShip: '#ff3b3b', playerPlane: '#54a0ff',
+    portalShip: '#a55eea', portalCube: '#54a0ff', portalPlane: '#00ff88',
+    finish: '#ffd700', wish: '#ffd700'
+  }
+};
+
+// === GAME STATE ===
+let gameState = 'MENU'; 
+let playerName = 'PATAN';
+let currentLevelIdx = 0;
+let attempts = 1;
+let wishesCollected = 0;
+let progress = {};
+
+try { const saved = localStorage.getItem('patan_dash_progress'); if(saved) progress = JSON.parse(saved); } catch(e) {}
+
+// === PLAYER OBJECT ===
+let player = {
+  x: 0, y: 0, vy: 0, vx: 0,
+  mode: 'cube', rotation: 0,
+  onGround: false, coyoteTimer: 0, jumpBufferTimer: 0,
+  trail: []
+};
+
+// === WORLD OBJECTS ===
+let camera = { x: 0, shake: 0 };
+let obstacles = [];
+let wishes = [];
+let particles = [];
+let bgElements = [];
+let levelEndX = 0;
+let frameCount = 0;
+
+// === INPUT STATE ===
+let input = { left: false, right: false, up: false, thrust: false };
+
+// === LEVEL DEFINITIONS (ADDING PLANE SECTIONS) ===
+const LEVELS = [
+  { id: 'stereo', name: 'STEREO', difficulty: 'easy', unlockReq: null, sections: [{ type: 'cube', length: 1400, density: 0.6 }] },
+  { id: 'gate', name: 'GATE', difficulty: 'medium', unlockReq: 'stereo', sections: [{ type: 'cube', length: 700, density: 0.5 }, { type: 'ship', length: 1100, density: 0.6 }, { type: 'cube', length: 700, density: 0.5 }] },
+  { id: 'polargist', name: 'POLARGIST', difficulty: 'hard', unlockReq: 'gate', sections: [{ type: 'ship', length: 900, density: 0.7 }, { type: 'cube', length: 800, density: 0.6 }, { type: 'ship', length: 900, density: 0.7 }] },
+  { id: 'dryout', name: 'DRY OUT', difficulty: 'hard', unlockReq: 'polargist', sections: [{ type: 'cube', length: 600, density: 0.5 }, { type: 'plane', length: 800, density: 0.6 }, { type: 'cube', length: 600, density: 0.5 }, { type: 'ship', length: 800, density: 0.7 }] },
+  { id: 'base_after', name: 'BASE AFTER', difficulty: 'extreme', unlockReq: 'dryout', sections: [{ type: 'cube', length: 800, density: 0.7 }, { type: 'plane', length: 1000, density: 0.7 }, { type: 'cube', length: 800, density: 0.7 }] },
+  { id: 'legend', name: 'LEGEND', difficulty: 'extreme', unlockReq: 'base_after', sections: [{ type: 'plane', length: 1100, density: 0.8 }, { type: 'cube', length: 900, density: 0.7 }, { type: 'ship', length: 1100, density: 0.8 }, { type: 'cube', length: 900, density: 0.7 }] }
+];
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+function init() {
+  resizeCanvases();
+  window.addEventListener('resize', resizeCanvases);
+  generateBackground();
+  setupInputs();
+  buildLevelCards();
+  requestAnimationFrame(gameLoop);
+}
+
+function resizeCanvases() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  pCanvas.width = window.innerWidth;
+  pCanvas.height = window.innerHeight;
+}
+
+function generateBackground() {
+  bgElements = [];
+  for(let i = 0; i < 80; i++) {
+    bgElements.push({
+      type: 'star', x: Math.random() * canvas.width * 2, y: Math.random() * canvas.height * 0.7,
+      size: Math.random() * 2 + 0.5, speed: Math.random() * 0.3 + 0.05, brightness: Math.random()
+    });
+  }
+  let bx = 0;
+  while(bx < canvas.width * 3) {
+    const bw = 40 + Math.random() * 80;
+    const bh = 80 + Math.random() * 200;
+    bgElements.push({
+      type: 'building', x: bx, width: bw, height: bh, windows: Math.floor(bh / 30),
+      color: `rgb(${15+Math.random()*10},${10+Math.random()*10},${25+Math.random()*15})`
+    });
+    bx += bw + 10 + Math.random() * 30;
+  }
+}
+
+// ============================================
+// INPUT HANDLING (SMOOTH JUMP LOGIC)
+// ============================================
+
+function setupInputs() {
+  window.addEventListener('keydown', e => {
+    switch(e.code) {
+      case 'ArrowLeft': case 'KeyA': input.left = true; break;
+      case 'ArrowRight': case 'KeyD': input.right = true; break;
+      case 'Space': case 'ArrowUp': case 'KeyW': 
+        input.up = true; 
+        triggerJumpInput(); // Единая точка входа для прыжка
+        break;
+      case 'Escape': if(gameState === 'PLAYING') pauseGame(); break;
+    }
+  });
+  
+  window.addEventListener('keyup', e => {
+    switch(e.code) {
+      case 'ArrowLeft': case 'KeyA': input.left = false; break;
+      case 'ArrowRight': case 'KeyD': input.right = false; break;
+      case 'Space': case 'ArrowUp': case 'KeyW': input.up = false; input.thrust = false; break;
+    }
+  });
+
+  const handlePointerDown = (pos) => {
+    if(gameState !== 'PLAYING') return;
+    if(player.mode === 'cube') triggerJumpInput();
+    else input.thrust = true;
+    
+    if(pos.x < canvas.width / 2) input.left = true;
+    else input.right = true;
+  };
+
+  const handlePointerMove = (pos) => {
+    if(input.left || input.right) {
+      input.left = pos.x < canvas.width / 2;
+      input.right = pos.x >= canvas.width / 2;
+    }
+  };
+
+  const handlePointerUp = () => {
+    input.left = false; input.right = false; input.thrust = false;
+  };
+
+  canvas.addEventListener('mousedown', e => handlePointerDown(getTouchPos(e)));
+  canvas.addEventListener('mousemove', e => handlePointerMove(getTouchPos(e)));
+  canvas.addEventListener('mouseup', handlePointerUp);
+  canvas.addEventListener('mouseleave', handlePointerUp);
+  
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); handlePointerDown(getTouchPos(e)); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); handlePointerMove(getTouchPos(e)); }, { passive: false });
+  canvas.addEventListener('touchend', e => { e.preventDefault(); handlePointerUp(); }, { passive: false });
+}
+
+function getTouchPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+
+function triggerJumpInput() {
+  if(player.mode !== 'cube') return;
+  
+  // Если мы на земле или в окне Coyote Time -> ПРЫГАЕМ СРАЗУ
+  if(player.onGround || player.coyoteTimer > 0) {
+    performJump();
+  } else {
+    // Иначе запоминаем нажатие (Jump Buffer)
+    player.jumpBufferTimer = CONFIG.physics.jumpBuffer;
+  }
+}
+
+function performJump() {
+  player.vy = CONFIG.physics.jumpForce;
+  player.onGround = false;
+  player.coyoteTimer = 0;
+  player.jumpBufferTimer = 0;
+  
+  // Визуальный эффект старта прыжка
+  spawnParticles(player.x + CONFIG.physics.playerSize/2, player.y + CONFIG.physics.playerSize, '#fff', 4);
+  camera.shake = 2; // Легкая тряска, не сильная
+}
+
+// ============================================
+// LEVEL GENERATION (WITH PLANE SUPPORT)
+// ============================================
+
+function generateLevel(levelDef) {
+  obstacles = [];
+  wishes = [];
+  let x = 500;
+  const groundY = canvas.height - 100;
+  const ceilY = groundY - 350;
+  
+  let lastMode = 'cube';
+  
+  levelDef.sections.forEach((section) => {
+    // Add portal when switching modes
+    if(section.type !== lastMode) {
+      const portalType = section.type === 'ship' ? 'portal_ship' : 
+                         section.type === 'plane' ? 'portal_plane' : 'portal_cube';
+      obstacles.push({ type: portalType, x: x, y: ceilY, w: 24, h: groundY - ceilY, used: false });
+      lastMode = section.type;
+      x += 100; // Больше воздуха перед порталом
+    }
+    
+    // Увеличенный шаг между объектами для комфортного тайминга
+    const step = section.type === 'cube' ? 320 : 240; 
+    const count = Math.floor(section.length / step);
+    
+    for(let i = 0; i < count; i++) {
+      const ox = x + i * step;
+      const rand = Math.random();
+      
+      if(section.type === 'cube') {
+        // Cube patterns with better spacing for triple spikes
+        if(rand < 0.3) {
+          obstacles.push({ type: 'spike', x: ox, y: groundY - 40, w: 40, h: 40 });
+        } else if(rand < 0.5) {
+          obstacles.push({ type: 'spike', x: ox, y: groundY - 40, w: 40, h: 40 });
+          obstacles.push({ type: 'spike', x: ox + 40, y: groundY - 40, w: 40, h: 40 });
+        } else if(rand < 0.7) {
+          // Triple spike - now possible with higher jump!
+          obstacles.push({ type: 'spike', x: ox, y: groundY - 40, w: 40, h: 40 });
+          obstacles.push({ type: 'spike', x: ox + 40, y: groundY - 40, w: 40, h: 40 });
+          obstacles.push({ type: 'spike', x: ox + 80, y: groundY - 40, w: 40, h: 40 });
+        } else if(rand < 0.85) {
+          obstacles.push({ type: 'block', x: ox, y: groundY - 80, w: 100, h: 80 });
+          wishes.push({ x: ox + 50, y: groundY - 120, collected: false });
+        } else {
+          obstacles.push({ type: 'block', x: ox, y: groundY - 100, w: 100, h: 100 });
+          wishes.push({ x: ox + 50, y: groundY - 140, collected: false });
+        }
+        
+        // Random wish in air (now reachable!)
+        if(Math.random() < 0.6) {
+          wishes.push({ x: ox + step/2, y: groundY - 200, collected: false });
+        }
+        
+      } else if(section.type === 'ship') {
+        // Ship patterns
+        const tubeHeight = groundY - ceilY;
+        if(rand < 0.3) {
+          const h = 120 + Math.random() * 100;
+          obstacles.push({ type: 'block_ceil', x: ox, y: ceilY, w: 60, h: h });
+        } else if(rand < 0.6) {
+          const h = 120 + Math.random() * 100;
+          obstacles.push({ type: 'block_floor', x: ox, y: groundY - h, w: 60, h: h });
+        } else {
+          const gapSize = 140; // Широкий проход
+          const gapPos = ceilY + 50 + Math.random() * (tubeHeight - gapSize - 100);
+          obstacles.push({ type: 'block_ceil', x: ox, y: ceilY, w: 60, h: gapPos - ceilY });
+          obstacles.push({ type: 'block_floor', x: ox, y: gapPos + gapSize, w: 60, h: groundY - (gapPos + gapSize) });
+          wishes.push({ x: ox + 30, y: gapPos + gapSize/2, collected: false });
+        }
+        
+      } else if(section.type === 'plane') {
+        // Plane patterns - more vertical space needed
+        const tubeHeight = groundY - ceilY;
+        if(rand < 0.4) {
+          // Ceiling obstacle only
+          const h = 100 + Math.random() * 80;
+          obstacles.push({ type: 'block_ceil', x: ox, y: ceilY, w: 50, h: h });
+        } else if(rand < 0.7) {
+          // Floor obstacle only
+          const h = 100 + Math.random() * 80;
+          obstacles.push({ type: 'block_floor', x: ox, y: groundY - h, w: 50, h: h });
+        } else {
+          // Gap between ceiling and floor
+          const gapSize = 160; // Even wider for plane
+          const gapPos = ceilY + 60 + Math.random() * (tubeHeight - gapSize - 120);
+          obstacles.push({ type: 'block_ceil', x: ox, y: ceilY, w: 50, h: gapPos - ceilY });
+          obstacles.push({ type: 'block_floor', x: ox, y: gapPos + gapSize, w: 50, h: groundY - (gapPos + gapSize) });
+          wishes.push({ x: ox + 25, y: gapPos + gapSize/2, collected: false });
+        }
+      }
+    }
+    x += section.length + 200;
+  });
+  
+  levelEndX = x + 200;
+  obstacles.push({ type: 'finish', x: levelEndX, y: ceilY, w: 20, h: groundY - ceilY });
+}
+
+// ============================================
+// PHYSICS UPDATE (FIXED FOR HIGHER JUMPS)
+// ============================================
+
+function updatePhysics() {
+  if(gameState !== 'PLAYING') return;
+  
+  frameCount++;
+  const phys = CONFIG.physics;
+  const groundY = canvas.height - 100;
+  const ceilY = groundY - 350;
+  
+  // 1. Движение вперед
+  player.x += phys.speed;
+  camera.x = player.x - phys.screenOffsetX;
+  
+  // Затухание тряски камеры
+  if(camera.shake > 0) camera.shake *= 0.85;
+
+  // 2. Вертикальная физика
+  if(player.mode === 'cube') {
+    // Гравитация
+    player.vy += phys.gravity;
+    player.y += player.vy;
+    
+    // Коллизия с землей
+    if(player.y + phys.playerSize >= groundY) {
+      player.y = groundY - phys.playerSize;
+      player.vy = 0;
+      player.onGround = true;
+      player.coyoteTimer = phys.coyoteTime;
+      
+      // Проверка Jump Buffer (если нажал в воздухе, но успел приземлиться)
+      if(player.jumpBufferTimer > 0) {
+        performJump();
+      }
+    } else {
+      player.onGround = false;
+      if(player.coyoteTimer > 0) player.coyoteTimer--;
+    }
+    
+    // Вращение куба
+    if(!player.onGround) {
+      player.rotation += 0.15; // Быстрое вращение в полете
+    } else {
+      // Мгновенно выравниваем при касании земли (GD style)
+      const nearestAngle = Math.round(player.rotation / (Math.PI/2)) * (Math.PI/2);
+      player.rotation = nearestAngle;
+    }
+    
+    // Горизонтальное управление (опционально)
+    if(input.left) player.vx = -2;
+    else if(input.right) player.vx = 2;
+    else player.vx = 0;
+    player.x += player.vx;
+
+  } else if(player.mode === 'ship') {
+    // Ship Mode
+    const thrusting = input.up || input.thrust;
+    player.vy += thrusting ? phys.shipLift : phys.shipGravity;
+    player.vy = Math.max(Math.min(player.vy, phys.maxVelocity), -phys.maxVelocity);
+    player.y += player.vy;
+    
+    player.rotation = player.vy * 0.05;
+    
+    if(player.y <= ceilY + 5 || player.y + phys.playerSize >= groundY - 5) {
+      die(); return;
+    }
+    
+    if(thrusting && frameCount % 2 === 0) {
+      spawnParticles(player.x, player.y + phys.playerSize/2, '#ff8c00', 1);
+    }
+    
+  } else if(player.mode === 'plane') {
+    // Plane Mode - similar to ship but smoother controls
+    const thrusting = input.up || input.thrust;
+    player.vy += thrusting ? phys.planeLift : phys.planeGravity;
+    player.vy = Math.max(Math.min(player.vy, phys.maxVelocity * 0.8), -phys.maxVelocity * 0.8); // Slightly slower max velocity
+    player.y += player.vy;
+    
+    // More gradual tilt for plane
+    player.rotation = player.vy * 0.03;
+    
+    if(player.y <= ceilY + 5 || player.y + phys.playerSize >= groundY - 5) {
+      die(); return;
+    }
+    
+    if(thrusting && frameCount % 3 === 0) {
+      spawnParticles(player.x, player.y + phys.playerSize/2, '#54a0ff', 1);
+    }
+  }
+
+  // 3. Трейл
+  player.trail.unshift({ x: player.x + phys.playerSize/2, y: player.y + phys.playerSize/2, alpha: 1 });
+  if(player.trail.length > 10) player.trail.pop();
+  player.trail.forEach(t => t.alpha *= 0.9);
+
+  // 4. Коллизии с препятствиями
+  const pRect = { x: player.x + 4, y: player.y + 4, w: phys.playerSize - 8, h: phys.playerSize - 8 };
+  
+  for(let obs of obstacles) {
+    if(obs.x + obs.w < camera.x - 100 || obs.x > camera.x + canvas.width + 100) continue;
+    
+    // Порталы
+    if(obs.type.startsWith('portal') && !obs.used) {
+      if(rectIntersect(pRect, obs)) {
+        obs.used = true;
+        player.mode = obs.type.includes('ship') ? 'ship' : 
+                      obs.type.includes('plane') ? 'plane' : 'cube';
+        player.vy = 0; player.rotation = 0;
+        spawnParticles(player.x + phys.playerSize/2, player.y + phys.playerSize/2, 
+                       obs.type.includes('ship') ? CONFIG.colors.portalShip : 
+                       obs.type.includes('plane') ? CONFIG.colors.portalPlane : CONFIG.colors.portalCube, 15);
+        camera.shake = 5;
+      }
+    }
+    
+    // Финиш
+    if(obs.type === 'finish' && pRect.x + pRect.w >= obs.x) {
+      win(); return;
+    }
+    
+    // Шипы (треугольник внутри прямоугольника)
+    if(obs.type === 'spike') {
+      const hitbox = { x: obs.x + 10, y: obs.y + 15, w: obs.w - 20, h: obs.h - 15 };
+      if(rectIntersect(pRect, hitbox)) { die(); return; }
+    }
+    
+    // Блоки
+    if(obs.type === 'block' || obs.type === 'block_ceil' || obs.type === 'block_floor') {
+      if(rectIntersect(pRect, obs)) {
+        if(player.mode === 'cube') {
+          // Landing logic
+          const prevBottom = pRect.y + pRect.h - player.vy;
+          // Если падаем сверху и предыдущая позиция была выше блока
+          if(player.vy > 0 && prevBottom <= obs.y + 5) {
+            player.y = obs.y - phys.playerSize;
+            player.vy = 0;
+            player.onGround = true;
+            player.coyoteTimer = phys.coyoteTime;
+            if(player.jumpBufferTimer > 0) performJump();
+          } else {
+            // Crash side/bottom
+            die(); return;
+          }
+        } else {
+          die(); return;
+        }
+      }
+    }
+  }
+
+  // 5. Сбор желаний
+  for(let wish of wishes) {
+    if(wish.collected) continue;
+    const dist = Math.hypot(wish.x - (player.x + phys.playerSize/2), wish.y - (player.y + phys.playerSize/2));
+    if(dist < 30) {
+      wish.collected = true;
+      wishesCollected++;
+      spawnParticles(wish.x, wish.y, CONFIG.colors.wish, 8);
+    }
+  }
+
+  // 6. Падение в пропасть
+  if(player.y > canvas.height + 100) { die(); return; }
+
+  // Обновление частиц
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.03;
+    return p.life > 0;
+  });
+}
+
+function rectIntersect(r1, r2) {
+  return !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y);
+}
+
+function spawnParticles(x, y, color, count) {
+  for(let i=0; i<count; i++) {
+    particles.push({
+      x, y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6-2,
+      life: 1, color, size: Math.random()*4+2
+    });
+  }
+}
+
+function die() {
+  gameState = 'DEAD';
+  spawnParticles(player.x + CONFIG.physics.playerSize/2, player.y + CONFIG.physics.playerSize/2, CONFIG.colors.spike, 20);
+  camera.shake = 10;
+  setTimeout(() => showOverlay('loseScreen'), 600);
+}
+
+function win() {
+  gameState = 'WON';
+  const stars = attempts === 1 ? 3 : (attempts <= 3 ? 2 : 1);
+  const levelId = LEVELS[currentLevelIdx].id;
+  if(stars > (progress[levelId] || 0)) {
+    progress[levelId] = stars;
+    try { localStorage.setItem('patan_dash_progress', JSON.stringify(progress)); } catch(e) {}
+  }
+  
+  document.getElementById('winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3-stars);
+  document.getElementById('winAttempts').textContent = attempts;
+  document.getElementById('winWishes').textContent = wishesCollected;
+  document.getElementById('winVerdict').textContent = stars===3 ? "PERFECT RUN." : (stars===2 ? "GOOD JOB." : "SURVIVED.");
+  
+  setTimeout(() => showOverlay('winScreen'), 800);
+}
+
+// ============================================
+// RENDERING (OPTIMIZED WITH PLANE DRAWING)
+// ============================================
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  const groundY = H - 100;
+  const ceilY = groundY - 350;
+  
+  ctx.clearRect(0, 0, W, H);
+  
+  // BG Gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, CONFIG.colors.bgTop);
+  bgGrad.addColorStop(1, CONFIG.colors.bgBottom);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+  
+  ctx.save();
+  if(camera.shake > 0.5) {
+    ctx.translate((Math.random()-0.5)*camera.shake, (Math.random()-0.5)*camera.shake);
+  }
+  
+  drawBackground(groundY);
+  
+  ctx.save();
+  ctx.translate(-camera.x, 0);
+  
+  drawGround(groundY);
+  
+  const inSpecialZone = obstacles.some(o => o.type.startsWith('portal') && Math.abs(o.x - player.x) < 600) || player.mode !== 'cube';
+  if(inSpecialZone) drawCeiling(ceilY);
+  
+  drawObstacles(groundY, ceilY);
+  drawWishes();
+  drawFinish(ceilY, groundY);
+  drawTrail();
+  drawPlayer();
+  
+  ctx.restore();
+  
+  pCtx.clearRect(0, 0, W, H);
+  drawParticles();
+  
+  ctx.restore();
+  
+  if(gameState === 'PLAYING') updateHUD();
+}
+
+function drawBackground(groundY) {
+  const parallaxSlow = 0.2;
+  bgElements.filter(e => e.type === 'star').forEach(star => {
+    const sx = ((star.x - camera.x * star.speed) % (canvas.width * 2) + canvas.width * 2) % (canvas.width * 2) - canvas.width * 0.5;
+    if(sx < -50 || sx > canvas.width + 50) return;
+    const twinkle = 0.5 + Math.sin(frameCount * 0.05 + star.brightness * 10) * 0.3;
+    ctx.globalAlpha = star.brightness * twinkle;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(sx, star.y, star.size, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  
+  bgElements.filter(e => e.type === 'building').forEach(bld => {
+    const bx = ((bld.x - camera.x * parallaxSlow) % (canvas.width * 3) + canvas.width * 3) % (canvas.width * 3) - 200;
+    if(bx + bld.width < -100 || bx > canvas.width + 100) return;
+    const by = groundY - bld.height;
+    ctx.fillStyle = bld.color;
+    ctx.fillRect(bx, by, bld.width, bld.height);
+    ctx.fillStyle = 'rgba(255, 200, 50, 0.15)';
+    for(let wy = by + 15; wy < groundY - 20; wy += 25) {
+      for(let wx = bx + 8; wx < bx + bld.width - 8; wx += 18) {
+        if(Math.random() > 0.3) { ctx.globalAlpha = 0.3 + Math.random() * 0.4; ctx.fillRect(wx, wy, 10, 14); }
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255, 59, 59, 0.3)';
+    ctx.fillRect(bx, by, bld.width, 4);
+  });
+}
+
+function drawGround(groundY) {
+  const groundGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+  groundGrad.addColorStop(0, CONFIG.colors.ground);
+  groundGrad.addColorStop(1, '#1a1025');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(camera.x - 50, groundY, canvas.width + 100, canvas.height - groundY);
+  
+  ctx.shadowColor = CONFIG.colors.groundLine;
+  ctx.shadowBlur = 15;
+  ctx.strokeStyle = CONFIG.colors.groundLine;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(camera.x - 50, groundY); ctx.lineTo(camera.x + canvas.width + 50, groundY); ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawCeiling(ceilY) {
+  const ceilGrad = ctx.createLinearGradient(0, 0, 0, ceilY);
+  ceilGrad.addColorStop(0, '#0a0a0f');
+  ceilGrad.addColorStop(1, '#2a1a35');
+  ctx.fillStyle = ceilGrad;
+  ctx.fillRect(camera.x - 50, 0, canvas.width + 100, ceilY);
+  ctx.shadowColor = CONFIG.colors.portalCube;
+  ctx.shadowBlur = 15;
+  ctx.strokeStyle = CONFIG.colors.portalCube;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(camera.x - 50, ceilY); ctx.lineTo(camera.x + canvas.width + 50, ceilY); ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawObstacles(groundY, ceilY) {
+  obstacles.forEach(obs => {
+    if(obs.x + obs.w < camera.x - 50 || obs.x > camera.x + canvas.width + 50) return;
+    switch(obs.type) {
+      case 'spike':
+        ctx.shadowColor = CONFIG.colors.spike; ctx.shadowBlur = 20;
+        ctx.fillStyle = CONFIG.colors.spike;
+        ctx.beginPath();
+        ctx.moveTo(obs.x, obs.y + obs.h);
+        ctx.lineTo(obs.x + obs.w / 2, obs.y);
+        ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+        ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 0;
+        break;
+      case 'block': case 'block_ceil': case 'block_floor':
+        ctx.fillStyle = CONFIG.colors.block;
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeStyle = 'rgba(255, 59, 59, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(obs.x + 4, obs.y + 4, obs.w - 8, 6);
+        break;
+      case 'portal_ship': case 'portal_cube': case 'portal_plane':
+        const isShip = obs.type === 'portal_ship';
+        const isPlane = obs.type === 'portal_plane';
+        const color = isShip ? CONFIG.colors.portalShip : isPlane ? CONFIG.colors.portalPlane : CONFIG.colors.portalCube;
+        const pulse = Math.sin(frameCount * 0.1) * 0.3 + 0.7;
+        const grad = ctx.createLinearGradient(obs.x - 15, 0, obs.x + obs.w + 15, 0);
+        grad.addColorStop(0, 'transparent'); grad.addColorStop(0.5, `rgba(255, 255, 255, ${pulse})`); grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(obs.x - 15, obs.y, obs.w + 30, obs.h);
+        ctx.shadowColor = color; ctx.shadowBlur = 20 * pulse;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(obs.x + obs.w / 2, obs.y); ctx.lineTo(obs.x + obs.w / 2, obs.y + obs.h); ctx.stroke();
+        ctx.shadowBlur = 0;
+        break;
+    }
+  });
+}
+
+function drawWishes() {
+  wishes.forEach(wish => {
+    if(wish.collected || wish.x < camera.x - 30 || wish.x > camera.x + canvas.width + 30) return;
+    const bob = Math.sin(frameCount * 0.08 + wish.x * 0.01) * 5;
+    const pulse = Math.sin(frameCount * 0.1) * 0.3 + 0.7;
+    ctx.shadowColor = CONFIG.colors.wish; ctx.shadowBlur = 15 * pulse;
+    ctx.fillStyle = CONFIG.colors.wish;
+    ctx.beginPath();
+    ctx.moveTo(wish.x, wish.y + bob - 12);
+    ctx.lineTo(wish.x + 10, wish.y + bob);
+    ctx.lineTo(wish.x, wish.y + bob + 12);
+    ctx.lineTo(wish.x - 10, wish.y + bob);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+}
+
+function drawFinish(ceilY, groundY) {
+  const finObs = obstacles.find(o => o.type === 'finish');
+  if(!finObs || finObs.x < camera.x - 100 || finObs.x > camera.x + canvas.width + 100) return;
+  const pulse = Math.sin(frameCount * 0.05) * 0.2 + 0.8;
+  ctx.shadowColor = CONFIG.colors.finish; ctx.shadowBlur = 20 * pulse;
+  ctx.fillStyle = CONFIG.colors.finish;
+  ctx.fillRect(finObs.x, ceilY, 8, groundY - ceilY);
+  ctx.fillStyle = CONFIG.colors.spike;
+  ctx.beginPath();
+  ctx.moveTo(finObs.x + 8, ceilY + 20);
+  ctx.lineTo(finObs.x + 60, ceilY + 40);
+  ctx.lineTo(finObs.x + 8, ceilY + 60);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawTrail() {
+  if(player.trail.length < 2) return;
+  const color = player.mode === 'cube' ? CONFIG.colors.playerCube : 
+                player.mode === 'ship' ? CONFIG.colors.playerShip : CONFIG.colors.playerPlane;
+  ctx.beginPath();
+  ctx.moveTo(player.trail[0].x, player.trail[0].y);
+  for(let i = 1; i < player.trail.length; i++) ctx.lineTo(player.trail[i].x, player.trail[i].y);
+  ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.globalAlpha = 0.3;
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+function drawPlayer() {
+  const px = player.x + CONFIG.physics.playerSize / 2;
+  const py = player.y + CONFIG.physics.playerSize / 2;
+  const size = CONFIG.physics.playerSize;
+  
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(player.rotation);
+  
+  if(player.mode === 'cube') {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-size/2, -size/2, size, size);
+    ctx.strokeStyle = CONFIG.colors.spike;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-size/2, -size/2, size, size);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(-10, -8, 7, 7); ctx.fillRect(5, -8, 7, 7);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-8, -6, 3, 3); ctx.fillRect(7, -6, 3, 3);
+    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if(player.vy < -5) ctx.arc(0, 8, 5, 0, Math.PI * 2);
+    else { ctx.moveTo(-6, 8); ctx.quadraticCurveTo(0, 12, 6, 8); }
+    ctx.stroke();
+  } else if(player.mode === 'ship') {
+    if(input.up || input.thrust) {
+      const flameLen = 15 + Math.random() * 10;
+      ctx.fillStyle = '#ff8c00';
+      ctx.beginPath(); ctx.moveTo(-size/2, -4); ctx.lineTo(-size/2 - flameLen, 0); ctx.lineTo(-size/2, 4); ctx.fill();
+      ctx.fillStyle = CONFIG.colors.wish;
+      ctx.beginPath(); ctx.moveTo(-size/2, -2); ctx.lineTo(-size/2 - flameLen * 0.6, 0); ctx.lineTo(-size/2, 2); ctx.fill();
+    }
+    ctx.fillStyle = CONFIG.colors.playerShip;
+    ctx.beginPath();
+    ctx.moveTo(size/2, 0); ctx.lineTo(-size/2, -size/2); ctx.lineTo(-size/4, 0); ctx.lineTo(-size/2, size/2);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+    ctx.beginPath(); ctx.ellipse(size * 0.1, 0, size * 0.15, size * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+  } else if(player.mode === 'plane') {
+    // Draw airplane shape
+    if(input.up || input.thrust) {
+      const flameLen = 10 + Math.random() * 8;
+      ctx.fillStyle = '#54a0ff';
+      ctx.beginPath(); ctx.moveTo(-size/2, -2); ctx.lineTo(-size/2 - flameLen, 0); ctx.lineTo(-size/2, 2); ctx.fill();
+    }
+    
+    // Fuselage
+    ctx.fillStyle = CONFIG.colors.playerPlane;
+    ctx.beginPath();
+    ctx.moveTo(size/2, 0);           // Nose
+    ctx.lineTo(size/4, -size/4);     // Top wing root
+    ctx.lineTo(-size/4, -size/4);    // Tail top
+    ctx.lineTo(-size/2, 0);          // Tail center
+    ctx.lineTo(-size/4, size/4);     // Tail bottom
+    ctx.lineTo(size/4, size/4);      // Bottom wing root
+    ctx.closePath(); ctx.fill();
+    
+    // Wings
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillRect(-size/4, -size/2, size/2, size/4); // Top wing
+    ctx.fillRect(-size/4, size/4, size/2, size/4);  // Bottom wing
+    
+    // Outline
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    
+    // Cockpit
+    ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+    ctx.beginPath(); ctx.ellipse(size * 0.2, 0, size * 0.1, size * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    pCtx.globalAlpha = p.life;
+    pCtx.fillStyle = p.color;
+    pCtx.shadowColor = p.color;
+    pCtx.shadowBlur = 10;
+    pCtx.beginPath();
+    pCtx.arc(p.x - camera.x, p.y, p.size, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+  pCtx.globalAlpha = 1;
+  pCtx.shadowBlur = 0;
+}
+
+// ============================================
+// UI FUNCTIONS
+// ============================================
+function showOverlay(id) {
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('active'));
+  if(id) document.getElementById(id).classList.add('active');
+  const hud = document.getElementById('hud');
+  const hint = document.getElementById('mobileHint');
+  if(gameState === 'PLAYING') { hud.classList.add('active'); hint.style.display='block'; }
+  else { hud.classList.remove('active'); hint.style.display='none'; }
+}
+function goToMenu() { playerName = document.getElementById('nameInput').value.trim().toUpperCase() || 'PATAN'; showOverlay('menuScreen'); }
+function buildLevelCards() {
+  const grid = document.getElementById('levelsGrid'); grid.innerHTML = '';
+  LEVELS.forEach((lvl, idx) => {
+    const card = document.createElement('div'); card.className = 'level-card';
+    const isLocked = lvl.unlockReq && !progress[lvl.unlockReq];
+    if(isLocked) card.classList.add('locked');
+    if(idx === currentLevelIdx && !isLocked) card.classList.add('selected');
+    const stars = progress[lvl.id] || 0;
+    const starsHtml = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    card.innerHTML = `<div><div class="card-num">Mission ${String(idx + 1).padStart(2, '0')}</div><div class="card-name">${lvl.name}</div></div><div><span class="card-diff diff-${lvl.difficulty}">${lvl.difficulty.toUpperCase()}</span><div class="card-stars" style="margin-top:10px">${starsHtml.split('').map((s, i) => `<span class="${i < stars ? 'filled' : ''}">${s}</span>`).join('')}</div></div>`;
+    if(!isLocked) card.onclick = () => selectLevel(idx);
+    grid.appendChild(card);
+  });
+}
+function selectLevel(idx) { currentLevelIdx = idx; buildLevelCards(); }
+function launchMission() { attempts = 1; startLevel(); }
+function retryLevel() { attempts++; startLevel(); }
+function startLevel() {
+  const lvlDef = LEVELS[currentLevelIdx];
+  wishesCollected = 0; particles = []; frameCount = 0;
+  generateLevel(lvlDef);
+  player.x = CONFIG.physics.screenOffsetX;
+  player.y = canvas.height - 100 - CONFIG.physics.playerSize;
+  player.vy = 0; player.vx = 0; player.mode = 'cube'; player.rotation = 0;
+  player.onGround = true; player.coyoteTimer = 0; player.jumpBufferTimer = 0; player.trail = [];
+  camera.x = 0; camera.shake = 0;
+  document.getElementById('hudLevel').textContent = lvlDef.name;
+  gameState = 'PLAYING'; showOverlay(null);
+}
+function pauseGame() { gameState = 'PAUSED'; showOverlay('menuScreen'); }
+function updateHUD() {
+  const prog = Math.min(100, ((player.x - CONFIG.physics.screenOffsetX) / (levelEndX - CONFIG.physics.screenOffsetX)) * 100);
+  document.getElementById('progressBar').style.width = prog + '%';
+  document.getElementById('hudMode').textContent = player.mode.toUpperCase();
+  document.getElementById('hudWishes').textContent = wishesCollected;
+  document.getElementById('hudAttempt').textContent = attempts;
+}
+function gameLoop() { updatePhysics(); render(); requestAnimationFrame(gameLoop); }
+
+init();
+</script>
+</body>
+</html>
